@@ -65,3 +65,39 @@ Command accepts a timezone as defined in tz database (https://en.wikipedia.org/w
 
 getLocalTime function is exported from gettime.js script, which in turn requires **timezone-support** npm package to convert current time into desired timezone time. If fed with incorrect timezone argument, throws an error and complains that input is rubbish.
 
+### CATS commands
+
+All CATS commands rely on **googleapis** npm package to read from a googlesheet.
+
+To authenticate with Google, a service account is used (has to be done from Google Cloud Console) with the key stored in serviceacc.json. Authentication code is very well described in this article: https://isd-soft.com/tech_blog/accessing-google-apis-using-service-account-node-js/ (which is where I copied the code from).
+
+Sheet configuration is defined in spreadsheet.json which defines a single object **servers** as follows:
+```
+{
+    "servers": {
+        "<numeric id of gang discord server>": {
+            "range": "<named range in google sheet>",
+            "channel": "<numeric id of the channel where bot will operate>",
+            "spreadsheetid": "<id of googlesheet with data>"}
+    } 
+}
+```
+The bot expects the table with following structure in the datasheet:
+| Name |	Prestige |	Stage	Role |	Location	| Timezone| 	Health1| 	Damage1| 	Health2| 	Damage2| 	Health3| 	Damage3| 	CurCycle| 	Cycle2| 	Cycle3| 	Cycle4| 	DiscordID|	Filler_do not remove|
+| --- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |
+
+The order of columns doesn't matter as long as Name is the first and Filler is the last. If column labels do not match however, the command code will need to be modified as the bot uses column labels to obtain indexes of the column to read from/write to.
+
+Here is an example of this from **gangtime** command:
+```
+const loc = rows[0].indexOf("Location");
+const tz = rows[0].indexOf("Timezone");
+```
+This is done to avoid hard references to columns positions and allow for inserting additional columns for further use or new commands.
+
+**gangtime** command also relies on getLocalTime function so inherits dependency on **timezone-support** package.
+
+After data is read from the spreadsheet, each command slices and/or pads values into table-like output, feeds it into array and then sends to the discord channel.
+
+If command is used outside of the channel defined in spreadsheet.json, the bot will direct the user to correct channel and won't execute any queries.
+If command is used on the server that is not present in spreadsheet.json, the bot will apologize it doesn't have data for this server.

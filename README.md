@@ -82,6 +82,8 @@ Sheet configuration is defined in spreadsheet.json which defines a single object
     } 
 }
 ```
+This is done to allow different gangs in the game to use the bot on their servers without having to share same spreadsheet and maintaining confidentiality from each other.
+
 The bot expects the table with following structure in the datasheet:
 | Name |	Prestige |	Stage	Role |	Location	| Timezone| 	Health1| 	Damage1| 	Health2| 	Damage2| 	Health3| 	Damage3| 	CurCycle| 	Cycle2| 	Cycle3| 	Cycle4| 	DiscordID|	Filler_do not remove|
 | --- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |
@@ -101,3 +103,19 @@ After data is read from the spreadsheet, each command slices and/or pads values 
 
 If command is used outside of the channel defined in spreadsheet.json, the bot will direct the user to correct channel and won't execute any queries.
 If command is used on the server that is not present in spreadsheet.json, the bot will apologize it doesn't have data for this server.
+
+### Forza Commands
+
+Forza-related commands follow the same principle as CATS commands above, in the sense that they rely on googleapis to parse shared spreadsheet and provide the output.
+
+**fh4cars** and **fm7cars** rely on Forza cars database maintained by Manteomax (https://wwww.manteomax.com).
+
+Both take up to 4 arguments as input and try to match each of them to cell values in the spreadsheet. Only details for cars that match ALL arguments are returned. The output is limited to a maximum of 20 results to meet Discord message size limitation and avoid multi-screen spam.
+
+PTG team related commands simply read the team roster spreadsheet and return respective values in a single array, not different to previously described commands.
+
+## Usage and feedback
+
+Any of my code from quadrobot is free to use or share, enjoy. If you happen to use it commercially (which I find hard to imagine), put some sort of reference to me in any form you see fit.
+
+Any feedback is welcome. Both in terms of improving the code and new functionality for the bot.

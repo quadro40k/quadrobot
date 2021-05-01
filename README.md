@@ -1,19 +1,19 @@
 # quadrobot
 
-Introduction
+##Introduction
 
 quadrobot is a simple Discord bot that was built for use by several gaming teams, playing CATS (Crash Arena Turbo Stars) and Forza games. It has several commands that may be useful for other teams, in same or other games or as a reference for someone trying to set up their own bot with similar functions.
 
 quadrobot is written in JavaScript based on Discord.js.
 
-Overview of Commands
+##Overview of Commands
 
 Commands the bot executes are divided into three main categories:
-General - commands not related to any game.
-CATS - commands related to Crash Arena Turbo Stars
-Forza - commands related to Forza and PTG Forza team.
+- General - commands not related to any game.
+- CATS - commands related to Crash Arena Turbo Stars
+- Forza - commands related to Forza and PTG Forza team.
 
-General Commands
+###General Commands
 
 help - returns the list of all commands bot responds to or, when used with command name as an argument, help text for specific command.
 ping - pings the bot, causes it to reply to the message author (purely for diagnostics, as a quick check the bot is alive).

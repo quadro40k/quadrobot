@@ -18,7 +18,7 @@ Commands the bot executes are divided into three main categories:
 - help - returns the list of all commands bot responds to or, when used with command name as an argument, help text for specific command.
 - ping - pings the bot, causes it to reply to the message author (purely for diagnostics, as a quick check the bot is alive).
 - reload - clears cache and reloads a command from source file. Allows to update commands without restarting the bot.
-time - returns UTC time if used with no arguments, takes timezone name as an argument and returns local time then.
+- time - returns UTC time if used with no arguments, takes timezone name as an argument and returns local time then.
 
 ### CATS Commands
 
@@ -38,4 +38,30 @@ time - returns UTC time if used with no arguments, takes timezone name as an arg
 - ptgracer - returns racers from PTG Team roster.
 - ptgtuner - returns tuners from PTG Team roster.
 - ptgphot - returns photographers from PTG Team roster.
+
+## Main bot code
+
+Main bot code in index.js is almost completely a copy of the reference code in Discord.js guide (https://discordjs.guide). The only alteration to reference code is arguments parser that has been modified to accept multi-word arguments when enclosed in quotes.
+
+The config.json file required in the code is also unaltered version from the guide, containing only prefix definition and bot token. For obvious reasons this config file is not included with the source code.
+
+Only dependencies the main code has is discord.js npm package (if you follow the guide, you'll get it installed as one of the first steps).
+
+If used on its own, main code will get the bot up and able to join servers, with command handler in it but no commands to be used. It'll do essentially nothing.
+
+## Commands code
+
+### General Commands
+
+#### ping, help, reload
+
+Ping, help and reload commands are also unaltered versions of the commands from Discord.js guide. They are very well described there so if really curious, check the guide out. No specific dependencies for these commands.
+
+#### time
+
+Time command uses single function getLocalTime to return local time back to the message author. If used without argument, returns UTC time.
+
+Command accepts a timezone as defined in tz database (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) as an argument and returns local time in that timezone.
+
+getLocalTime function is exported from gettime.js script, which in turn requires **timezone-support** npm package to convert current time into desired timezone time. If fed with incorrect timezone argument, throws an error and complains that input is rubbish.
 

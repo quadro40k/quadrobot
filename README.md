@@ -18,6 +18,7 @@ Commands the bot executes are divided into three main categories:
 - help - returns the list of all commands bot responds to or, when used with command name as an argument, help text for specific command.
 - ping - pings the bot, causes it to reply to the message author (purely for diagnostics, as a quick check the bot is alive).
 - reload - clears cache and reloads a command from source file. Allows to update commands without restarting the bot.
+- rescan - similar to reload but instead of reloading one existing command, rescans commands folder and adds all and any new commands.
 - time - returns UTC time if used with no arguments, takes timezone name as an argument and returns local time then.
 
 ### CATS Commands
@@ -25,8 +26,10 @@ Commands the bot executes are divided into three main categories:
 - gang - reads current gang roster for current Discord server from configurable Google sheet and returns it along with role and combined bots strength of each player.
 - gangtime - returns local time for each of the players in the gang.
 - gangtr - returns current and average trophy count for each of the players in the gang.
-- updtr - takes a number as an argument, update the current trophy count for the whoever used the command if they are present in the team roster.
+- updtr - takes a number as an argument, updates the current trophy count for the whoever used the command if they are present in the team roster.
+- updbot - takes 3 numeric arguments and updates respective bot's health and damage.
 - tr - takes a number as an argument (uses 200 if no argument is given) and mentions all players in the gang who are currently below that number of trophies.
+- directions - takes text and 1 picture as arguments, generates new embed with text in Attack Order field and the picture attached to it. Adds a set of reactions to the embed and then collects those reactions as players hit them, providing bot tracking functionality.
 
 ### Forza Commands
 
@@ -38,6 +41,7 @@ Commands the bot executes are divided into three main categories:
 - ptgracer - returns racers from PTG Team roster.
 - ptgtuner - returns tuners from PTG Team roster.
 - ptgphot - returns photographers from PTG Team roster.
+- ptgvoteadd - generates new embed with PTG logo and one picture, sets 👍 reaction to it and then collects reactions to provide voting functionality.
 
 ## Main bot code
 

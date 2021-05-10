@@ -61,6 +61,10 @@ If used on its own, main code will get the bot up and able to join servers, with
 
 Ping, help and reload commands are also unaltered versions of the commands from Discord.js guide. They are very well described there so if really curious, check the guide out. No specific dependencies for these commands.
 
+#### rescan
+
+This command deletes the require cache and then performs rescan of all .js files in ./commands folder, loading up any newly added commands. Without this addition of new commands requires bot restart (which is bad). The command is restricted to be used by admin only, using hard coded discordId (and refusing to execute if author's id doesn't match).
+
 #### time
 
 Time command uses single function getLocalTime to return local time back to the message author. If used without argument, returns UTC time.
@@ -71,7 +75,9 @@ getLocalTime function is exported from gettime.js script, which in turn requires
 
 ### CATS commands
 
-All CATS commands rely on **googleapis** npm package to read from a googlesheet.
+#### gang, gangtime, gangtr, tr, updtr, updbot
+
+These CATS commands rely on **googleapis** npm package to read from a googlesheet.
 
 To authenticate with Google, a service account is used (has to be done from Google Cloud Console) with the key stored in serviceacc.json. Authentication code is very well described in this article: https://isd-soft.com/tech_blog/accessing-google-apis-using-service-account-node-js/ (which is where I copied the code from).
 
@@ -82,7 +88,9 @@ Sheet configuration is defined in spreadsheet.json which defines a single object
         "<numeric id of gang discord server>": {
             "range": "<named range in google sheet>",
             "channel": "<numeric id of the channel where bot will operate>",
-            "spreadsheetid": "<id of googlesheet with data>"}
+            "spreadsheetid": "<id of googlesheet with data>",
+            "dirChannel": "<id of the directions channel where directions will be sent>",
+            "gangLogo": "<url to the gang logo image>"}
     } 
 }
 ```
@@ -107,6 +115,14 @@ After data is read from the spreadsheet, each command slices and/or pads values 
 
 If command is used outside of the channel defined in spreadsheet.json, the bot will direct the user to correct channel and won't execute any queries.
 If command is used on the server that is not present in spreadsheet.json, the bot will apologize it doesn't have data for this server.
+
+#### directions
+
+When issued, directions command takes any text that follows the command and an image attached to the message, creates an embed based on that input and deletes the original message. The bot then adds a set of reactions to the embed that are used to track in-game bot placements via Reactions Collector class of discord.js. Embed is then updated based on collected or removed reactions. Here's an example of directions output:
+
+![directions](https://user-images.githubusercontent.com/83503422/117704758-81421080-b1cb-11eb-83a5-46de5a5e6c61.png)
+
+Gang logo is taken from the spreasdheet.json. If no image is attached to the message, same logo is used as an image.
 
 ### Forza Commands
 

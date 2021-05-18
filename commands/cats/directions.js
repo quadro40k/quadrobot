@@ -10,6 +10,8 @@ module.exports = {
 	execute(message, args) {
 
         //delete require.cache[require.resolve('../../spreadsheet.json')];
+        const nocheckin = message.client.commands.get('nocheckin')
+		nocheckin.execute(message)
 
         const standardDir = `
         @Alphas
@@ -106,7 +108,7 @@ module.exports = {
                         .addField('Attack order', directionsText, true)
 
                     message.delete()
-                    .then(msg => message.channel.send(directionsEmbed)
+                    .then(msg => message.channel.send(`<@&${servers[currServer].role}>: New round!`, directionsEmbed)
                         .then(embedMessage => {
                             //embedMessage.react("⚔️");
                             embedMessage.react("1️⃣");
@@ -125,6 +127,12 @@ module.exports = {
                                 let deadNames = [];
 
                                 if(!user.bot) {
+                                    const role = message.guild.roles.cache.find(role => role.name == 'nocheckin')
+
+                                    message.guild.members.fetch(user.id)
+                                    .then(member => member.roles.remove(role))
+                                    .catch(error => console.log(error));
+
                                     if(reaction.emoji.name === "1️⃣" || reaction.emoji.name === "2️⃣" || reaction.emoji.name === "3️⃣") {
                                         landedBots++
                                         let playerId = user.id;

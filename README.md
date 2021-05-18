@@ -15,33 +15,37 @@ Commands the bot executes are divided into three main categories:
 
 ### General Commands
 
-- help - returns the list of all commands bot responds to or, when used with command name as an argument, help text for specific command.
-- ping - pings the bot, causes it to reply to the message author (purely for diagnostics, as a quick check the bot is alive).
-- reload - clears cache and reloads a command from source file. Allows to update commands without restarting the bot.
-- rescan - similar to reload but instead of reloading one existing command, rescans commands folder and adds all and any new commands.
-- time - returns UTC time if used with no arguments, takes timezone name as an argument and returns local time then.
+- **help** - returns the list of all commands bot responds to or, when used with command name as an argument, help text for specific command.
+- **ping** - pings the bot, causes it to reply to the message author (purely for diagnostics, as a quick check the bot is alive).
+- **reload** - clears cache and reloads a command from source file. Allows to update commands without restarting the bot.
+- **rescan** - similar to reload but instead of reloading one existing command, rescans commands folder and adds all and any new commands.
+- **time** - returns UTC time if used with no arguments, takes timezone name as an argument and returns local time then.
 
 ### CATS Commands
 
-- gang - reads current gang roster for current Discord server from configurable Google sheet and returns it along with role and combined bots strength of each player.
-- gangtime - returns local time for each of the players in the gang.
-- gangtr - returns current and average trophy count for each of the players in the gang.
-- updtr - takes a number as an argument, updates the current trophy count for the whoever used the command if they are present in the team roster.
-- updbot - takes 3 numeric arguments and updates respective bot's health and damage.
-- tr - takes a number as an argument (uses 200 if no argument is given) and mentions all players in the gang who are currently below that number of trophies.
-- directions - takes text and 1 picture as arguments, generates new embed with text in Attack Order field and the picture attached to it. Adds a set of reactions to the embed and then collects those reactions as players hit them, providing bot tracking functionality.
+- **gang** - reads current gang roster for current Discord server from configurable Google sheet and returns it along with role and combined bots strength of each player.
+- **gangtime** - returns local time for each of the players in the gang.
+- **gangtr** - returns current and average trophy count for each of the players in the gang.
+- **updtr** - takes a number as an argument, updates the current trophy count for the whoever used the command if they are present in the team roster.
+- **updbot** - takes 3 numeric arguments and updates respective bot's health and damage.
+- **tr** - takes a number as an argument (uses 200 if no argument is given) and mentions all players in the gang who are currently below that number of trophies.
+- **directions** - takes text and 1 picture as arguments, generates new embed with text in Attack Order field and the picture attached to it. Adds a set of reactions to the embed and then collects those reactions as players hit them, providing bot tracking functionality.
+- **logbattle** - adds battle log entry to google sheet. The command only appends the log, any corrections or changes need to be done manually in the sheet.
+- **battlestats** - reads the battle log and returns it to the channel. If used without arguments shows general battle stats and last 10 battles. If used with argument, tries to match any part of the agrument to any of the enemy names and returns only matching battles.
+- **instant** - calculates the time for instant win given points intake, current points and instant limit.
+- **ckfinish** - takes single number as agrument representing hours and minutes left in a round (e.g. 5 hours 10 minutes is 510) then generates new embed with local time for each gang member and reactions that allow check-in for members whether they will be online for battle start or not. 
 
 ### Forza Commands
 
-- fh4cars - takes up to 4 arguments and then returns list of cars in Forza Horizon 4 matching provided arguments.
-- fm7cars - same as above but for Forza Motorsport 7.
-- jamie - takes up to 4 arguments and then returns list of tunes for Forza Horizon 4 cars by PTG Jamie matching provided arguments.
-- ptg - returns current PTG Team roster.
-- ptgpainter - returns painters from PTG Team roster.
-- ptgracer - returns racers from PTG Team roster.
-- ptgtuner - returns tuners from PTG Team roster.
-- ptgphot - returns photographers from PTG Team roster.
-- ptgvoteadd - generates new embed with PTG logo and one picture, sets 👍 reaction to it and then collects reactions to provide voting functionality.
+- **fh4cars** - takes up to 4 arguments and then returns list of cars in Forza Horizon 4 matching provided arguments.
+- **fm7cars** - same as above but for Forza Motorsport 7.
+- **jamie** - takes up to 4 arguments and then returns list of tunes for Forza Horizon 4 cars by PTG Jamie matching provided arguments.
+- **ptg** - returns current PTG Team roster.
+- **ptgpainter** - returns painters from PTG Team roster.
+- **ptgracer** - returns racers from PTG Team roster.
+- **ptgtuner** - returns tuners from PTG Team roster.
+- **ptgphoto** - returns photographers from PTG Team roster.
+- **ptgvoteadd** - generates new embed with PTG logo and one picture, sets 👍 reaction to it and then collects reactions to provide voting functionality.
 
 ## Main bot code
 
@@ -75,7 +79,7 @@ getLocalTime function is exported from gettime.js script, which in turn requires
 
 ### CATS commands
 
-#### gang, gangtime, gangtr, tr, updtr, updbot
+#### gang, gangtime, gangtr, tr, updtr, updbot, logbattle, battlestats
 
 These CATS commands rely on **googleapis** npm package to read from a googlesheet.
 
@@ -104,17 +108,17 @@ The bot expects the table with following structure in the datasheet for gang mem
 
 The order of columns doesn't matter as long as Name is the first and Filler is the last. If column labels do not match however, the command code will need to be modified as the bot uses column labels to obtain indexes of the column to read from/write to.
 
-If battle log is used, the bot expects additional sheet with following structure:
-
-| Date |	Enemy |	Result |	Instant	| Image| 	Placeholder1| Placeholder2|Placeholder3|Placeholder4|Filler_do not remove|
-| --- |--- |--- |--- |--- |--- |--- |--- |--- |--- |
-
 Here is an example of this from **gangtime** command:
 ```
 const loc = rows[0].indexOf("Location");
 const tz = rows[0].indexOf("Timezone");
 ```
 This is done to avoid hard references to columns positions and allow for inserting additional columns for further use or new commands.
+
+If battle log is used, the bot expects additional sheet with following structure:
+
+| Date |	Enemy |	Result |	Instant	| Image| 	Placeholder1| Placeholder2|Placeholder3|Placeholder4|Filler_do not remove|
+| --- |--- |--- |--- |--- |--- |--- |--- |--- |--- |
 
 **gangtime** command also relies on getLocalTime function so inherits dependency on **timezone-support** package.
 
@@ -127,9 +131,26 @@ If command is used on the server that is not present in spreadsheet.json, the bo
 
 When issued, directions command takes any text that follows the command and an image attached to the message, creates an embed based on that input and deletes the original message. The bot then adds a set of reactions to the embed that are used to track in-game bot placements via Reactions Collector class of discord.js. Embed is then updated based on collected or removed reactions. Here's an example of directions output:
 
-![directions](https://user-images.githubusercontent.com/83503422/117704758-81421080-b1cb-11eb-83a5-46de5a5e6c61.png)
+![directions_sample_small](https://user-images.githubusercontent.com/83503422/118609601-30c64680-b7bb-11eb-9a63-8c27d89b5b5b.png)
 
 Gang logo is taken from the spreasdheet.json. If no image is attached to the message, same logo is used as an image.
+
+When a player clicks numbers reaction, their name is logged as "defending" with the number of bots appended to it.
+When a player clicks skull or bone reaction, it means their bot is dead and their name gets added to "recovering section". This also triggers a two hours timer which notifies the player that their bot is fully healed.
+When a player clicks heart reaction, their number of free heals is reduced by 1.
+
+Together this provides a way for players and gang leaders to track bots placement, dead bots and number of heals per player, as well as heal reminder mechanism to facilitate good battle flow.
+
+#### instant
+
+Really simple command: takes points-per-minute gain as first argument, current points as second and instant limit as third, then calculates number of minutes until the instant win and returns it in "x hours and y minutes left". Useful for use with **ckfinish** command.
+
+#### ckfinish
+
+This command uses both reaction collector functionality and google API to access players list. Upon running with number as an argument it calculates the time of the battle finish, then converts it into each gang members' local time. This data is used to generate new embed with reactions that are tracked to provide check-in by the battle end.
+
+![finish_sample_small](https://user-images.githubusercontent.com/83503422/118610077-b0ecac00-b7bb-11eb-863c-fec6ab9463cd.png)
+
 
 ### Forza Commands
 

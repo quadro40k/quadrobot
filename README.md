@@ -34,6 +34,7 @@ Commands the bot executes are divided into three main categories:
 - **battlestats** - reads the battle log and returns it to the channel. If used without arguments shows general battle stats and last 10 battles. If used with argument, tries to match any part of the agrument to any of the enemy names and returns only matching battles.
 - **instant** - calculates the time for instant win given points intake, current points and instant limit.
 - **ckfinish** - takes single number as agrument representing hours and minutes left in a round (e.g. 5 hours 10 minutes is 510) then generates new embed with local time for each gang member and reactions that allow check-in for members whether they will be online for battle start or not. 
+- **nocheckin** - assigns all gang members 'nocheckin' role (if exists). This command is used by **directions** command.
 
 ### Forza Commands
 
@@ -127,9 +128,17 @@ After data is read from the spreadsheet, each command slices and/or pads values 
 If command is used outside of the channel defined in spreadsheet.json, the bot will direct the user to correct channel and won't execute any queries.
 If command is used on the server that is not present in spreadsheet.json, the bot will apologize it doesn't have data for this server.
 
+#### nocheckin
+
+This command reads the list of gang players from google sheet and assigns them 'nocheckin' role if it exists on the server. The command is called by **directions** command and is used as part of participation tracking.
+
 #### directions
 
-When issued, directions command takes any text that follows the command and an image attached to the message, creates an embed based on that input and deletes the original message. The bot then adds a set of reactions to the embed that are used to track in-game bot placements via Reactions Collector class of discord.js. Embed is then updated based on collected or removed reactions. Here's an example of directions output:
+When issued, directions command takes any text that follows the command and an image attached to the message, creates an embed based on that input and deletes the original message. The bot then adds a set of reactions to the embed that are used to track in-game bot placements via Reactions Collector class of discord.js. Embed is then updated based on collected or removed reactions. 
+
+The command also calls **nocheckin** commands to assign all members 'nocheckin' role. This role is removed when any of the reactions are collected. As a result, only not-checked-in members remain in the role, which allows targeted pings. 
+
+Here's an example of directions output:
 
 ![directions_sample_small](https://user-images.githubusercontent.com/83503422/118609601-30c64680-b7bb-11eb-9a63-8c27d89b5b5b.png)
 

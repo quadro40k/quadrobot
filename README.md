@@ -90,17 +90,24 @@ Sheet configuration is defined in spreadsheet.json which defines a single object
             "channel": "<numeric id of the channel where bot will operate>",
             "spreadsheetid": "<id of googlesheet with data>",
             "dirChannel": "<id of the directions channel where directions will be sent>",
-            "gangLogo": "<url to the gang logo image>"}
+            "gangLogo": "<url to the gang logo image>",
+            "role": "<numeric id of gang ping role>",
+            "logRange": "<named range for battle log in google sheet>"}
     } 
 }
 ```
 This is done to allow different gangs in the game to use the bot on their servers without having to share same spreadsheet and maintaining confidentiality from each other.
 
-The bot expects the table with following structure in the datasheet:
+The bot expects the table with following structure in the datasheet for gang members data:
 | Name |	Prestige |	Stage	Role |	Location	| Timezone| 	Health1| 	Damage1| 	Health2| 	Damage2| 	Health3| 	Damage3| 	CurCycle| 	Cycle2| 	Cycle3| 	Cycle4| 	DiscordID|	Filler_do not remove|
 | --- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |
 
 The order of columns doesn't matter as long as Name is the first and Filler is the last. If column labels do not match however, the command code will need to be modified as the bot uses column labels to obtain indexes of the column to read from/write to.
+
+If battle log is used, the bot expects additional sheet with following structure:
+
+| Date |	Enemy |	Result |	Instant	| Image| 	Placeholder1| Placeholder2|Placeholder3|Placeholder4|Filler_do not remove|
+| --- |--- |--- |--- |--- |--- |--- |--- |--- |--- |
 
 Here is an example of this from **gangtime** command:
 ```

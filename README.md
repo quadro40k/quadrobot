@@ -89,7 +89,7 @@ getLocalTime function is exported from gettime.js script, which in turn requires
 
 ### CATS commands
 
-#### gang, gangtime, gangtr, tr, updtr, updbot, logbattle, battlestats
+
 
 **section outdated, requires rewrite**
 

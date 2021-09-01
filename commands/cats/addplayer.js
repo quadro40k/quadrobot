@@ -1,20 +1,15 @@
 const Sequelize = require('sequelize');
 
 module.exports = {
-	name: 'nocheckin',
-	description: 'Assings nocheckin role (if exists) to all gang members',
+	name: 'addplayer',
+	description: 'Adds a player. Use !addplayer @mention <in-game-name>. This will also add your gang role to the player you are setting up.',
 	cooldown: 5,
 	guildOnly: true,
-	execute: async (message) => {
-        const role = message.guild.roles.cache.find(role => role.name == 'nocheckin');
+	execute: async (message, args) => {
 
-        if(!role) {
-            return console.log('No suitable role');
-        };
+		const currServer = message.guild.id;
 
-        let currServer = message.guild.id;
-
-        const sequelize = new Sequelize({
+		const sequelize = new Sequelize({
 			dialect: 'sqlite',
 			storage: './data/servers.sqlite'
 		});
@@ -24,27 +19,37 @@ module.exports = {
 			gangName: Sequelize.STRING,
 			gangTag: Sequelize.STRING,
 			range: Sequelize.STRING,
-			logRange: Sequelize.STRING,
 			channel: Sequelize.STRING,
 			dirChannel: Sequelize.STRING,
-			spreadsheetid: Sequelize.STRING,
 			role: Sequelize.STRING,
 			captain: Sequelize.STRING,
-			dmEnabled: {
-				type: Sequelize.BOOLEAN,
-				defaultValue: false,
-			},
 			gangLogo: Sequelize.STRING,
-			redBanner: Sequelize.STRING
 		});
 
 		await Servers.sync();
 
-        const server = await Servers.findOne({where: {server: currServer}});
+		const server = await Servers.findOne({where: {server: currServer}});
 
-        const plArray = [];
+		if(!server) {
+			return message.channel.send(`Sorry, I have no data for this server.`);
+		};
 
-        const Gang = sequelize.define(server.range, {
+		const authorMem = await message.guild.members.fetch(message.author.id);
+
+		if(!authorMem.roles.cache.some(role => role.id === server.captain)) {
+			return message.channel.send(`Sorry, this command is restricted to <@&${server.captain}> role.`);
+		};
+
+		if(args.length < 2 || !message.mentions.members.keys().next().value) {
+			return message.channel.send('You need to @ mention Discord member and add in-game name.');
+		};
+
+		const targetPlayer = message.mentions.members.keys().next().value;
+		const target = message.guild.members.cache.get(targetPlayer);
+		const playerName = target.displayName;
+		const gameName = args[1];
+	
+		const Gang = sequelize.define(server.range, {
 			name: Sequelize.STRING,
 			gamename: {
 				type: Sequelize.STRING,
@@ -105,14 +110,24 @@ module.exports = {
 
 		await Gang.sync();
 
-        const gangObj = await Gang.findAll({attributes: ['discordid']});
-        
-        const playerIds = gangObj.map(member => member.dataValues.discordid);
+		const addPlayer = Gang.create({
+			name: playerName,
+			gamename: gameName,
+			discordid: targetPlayer
+		})
+		.then(upd => {
 
-        message.guild.members.fetch({user: playerIds})
-        .then(members => {
-            members.forEach(member => member.roles.add(role));
-        })
-        .catch(error => console.log(error));
-    }
-}
+			const role = message.guild.roles.cache.find(role => role.id == server.role);
+			target.roles.add(role)
+			.catch(e => console.log(e));
+			return message.channel.send(`Player **${gameName}** has been added!`);
+
+		})
+		.catch(error => {
+			if(error.name === 'SequelizeUniqueConstraintError') {
+				return message.channel.send('This player already exists, use !updplayer if you want to update the player.');
+			}
+			return message.channel.send(`Something went wrong while adding the player.`);
+		});
+	},
+};

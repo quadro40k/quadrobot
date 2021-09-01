@@ -1,102 +1,140 @@
-const fs = require('fs');
-const {google} = require('googleapis');
-const privatekey = require('../../serviceacc.json');
-const {servers} = require('../../spreadsheet.json')
+const Sequelize = require('sequelize');
 
 module.exports = {
     name: 'updtr',
-    description: 'Updates your current trophies. Usage: -updtr <number>',
+    description: 'Updates your current trophies. Usage: !updtr <number>',
     cooldown: 5,
     guildOnly: true,
-    execute(message, args) {
-        let currServer = message.guild.id;
-        let currChannel = message.channel.id;
+    execute: async (message, args) => {
+
+        const currServer = message.guild.id;
+
+		const sequelize = new Sequelize({
+			dialect: 'sqlite',
+			storage: './data/servers.sqlite'
+		});
+
+		const Servers = sequelize.define('servers', {
+			server: Sequelize.STRING,
+			gangName: Sequelize.STRING,
+			gangTag: Sequelize.STRING,
+			range: Sequelize.STRING,
+			logRange: Sequelize.STRING,
+			channel: Sequelize.STRING,
+			dirChannel: Sequelize.STRING,
+			spreadsheetid: Sequelize.STRING,
+			role: Sequelize.STRING,
+			captain: Sequelize.STRING,
+			dmEnabled: {
+				type: Sequelize.BOOLEAN,
+				defaultValue: false,
+			},
+			gangLogo: Sequelize.STRING,
+			redBanner: Sequelize.STRING
+		});
+
+		await Servers.sync();
+
+		const server = await Servers.findOne({where: {server: currServer}});
+
+		if(!server) {
+			return message.channel.send(`Sorry, I have no data for this server.`);
+		};
+
         let targetPlayer = message.author.id;
 
-        if(servers[currServer] == undefined) {
-            message.channel.send(`Sorry, have no data for this server`);
-        } else {
-            if(servers[currServer].channel !== currChannel) {
-                message.channel.send(`Wrong channel, use this command in <#${servers[currServer].channel}>`);
-            } else {
-                if(!args.length || isNaN(args[0]) || args[0] < 0) {
-                    message.channel.send('Mate, you need to specify a valid number after -updtr')
-                } else {
-                    const gangSheet = servers[currServer].range;
-                    const gangsheetid = servers[currServer].spreadsheetid;
-                    message.channel.startTyping();
+        if(message.mentions.members.keys().next().value) {
+            const authorMem = await message.guild.members.fetch(targetPlayer);
+            if(!authorMem.roles.cache.some(role => role.id === server.captain)) {
+                return message.channel.send(`Sorry, you need to have <@&${server.captain}> role to update other players.`);
+            };
+			targetPlayer = message.mentions.members.keys().next().value;
+            args = args.slice(1);
+		};
 
-                    // configure a JWT auth client
-                    let jwtClient = new google.auth.JWT(
-                        privatekey.client_email,
-                        null,
-                        privatekey.private_key,
-                        ['https://www.googleapis.com/auth/spreadsheets']
-                    );
-                    //authenticate request
-                    jwtClient.authorize(function (err, tokens) {
-                        if(err) {
-                            console.log(err);
-                            return;
-                        } else {
-                            return;
-                        }
-                    });
+        const Gang = sequelize.define(server.range, {
+			name: Sequelize.STRING,
+			gamename: {
+				type: Sequelize.STRING,
+				unique: true,
+			},
+			prestige: {
+                type: Sequelize.INTEGER,
+                defaultValue: 0,
+            },
+			role: {
+                type: Sequelize.STRING,
+                defaultValue: 'none'
+            },
+			subrole: {
+                type: Sequelize.STRING,
+                defaultValue: 'none'
+            },
+			location: {
+                type: Sequelize.STRING,
+                defaultValue: 'none'
+            },
+			timezone: {
+                type: Sequelize.STRING,
+                defaultValue: 'Etc/UTC'
+            },
+			bot1health: {
+                type: Sequelize.INTEGER,
+                defaultValue: 0,
+            },
+			bot1damage: {
+                type: Sequelize.INTEGER,
+                defaultValue: 0,
+            },
+			bot2health: {
+                type: Sequelize.INTEGER,
+                defaultValue: 0,
+            },
+			bot2damage: {
+                type: Sequelize.INTEGER,
+                defaultValue: 0,
+            },
+			bot3health: {
+                type: Sequelize.INTEGER,
+                defaultValue: 0,
+            },
+			bot3damage: {
+                type: Sequelize.INTEGER,
+                defaultValue: 0,
+            },
+			trophies: {
+                type: Sequelize.INTEGER,
+                defaultValue: 0,
+            },
+			discordid: Sequelize.STRING
+		}, {
+			freezeTableName: true
+		});
 
-                    const sheets = google.sheets('v4');
+		await Gang.sync();
 
-                    sheets.spreadsheets.values.get({
-                        auth: jwtClient,
-                        spreadsheetId: gangsheetid,
-                        range: gangSheet
-                    }, function(err, res) {
-                        if (err) {
-                            console.log('API Error:' + err);
-                        } else {
-                            const rows = res.data.values;
-                            if (rows.length) {
-                                const discID = rows[0].indexOf("DiscordID");
-                                const currTr = rows[0].indexOf("CurCycle");
+        const player = await Gang.findOne({where: {discordid: targetPlayer}});
 
-                                const playerRow = rows.findIndex(element => {
-                                    return element.includes(targetPlayer);
-                                }) + 1;
-                                
-                                if(playerRow == 0) {
-                                    message.channel.send('Sorry mate, don\'t know you :confused:');
-                                    message.channel.stopTyping();
-                                } else {
-                                    let updateCell = `R${playerRow}C${currTr+1}`;
-                                    let updatePage = res.data.range.split("!")[0];
-                                    let updateRange = updatePage + "!" + updateCell;
-                                    let updateValue = [];
-                                    updateValue.push([args[0]]);
-                                    let updateRes = { 'values': updateValue};
+        if(!player) {
+            return message.channel.send(`Sorry, I cannot find this player.`);
+        };
 
-                                    sheets.spreadsheets.values.update({
-                                        auth: jwtClient,
-                                        spreadsheetId: gangsheetid,
-                                        range: updateRange,
-                                        valueInputOption: 'USER_ENTERED',
-                                        resource: updateRes
-                                    }, (err, result) => {
-                                        if(err) {
-                                            console.log("Error writing:" + err);
-                                            message.channel.send('Ouch, something went wrong, update failed');
-                                        } else {
-                                            message.channel.send('Your trophy count is updated! :thumbsup:');
-                                            message.channel.stopTyping()
-                                        }
-                                    })
-                                }
-                            }
-                        }
-                        
-                    })
+        if(!args.length || isNaN(args[0]) || args[0] < 0) {
+            return message.channel.send('Mate, you need to specify a valid number after !updtr');
+        };
 
-                }
+        let responseText = `**${player.gamename}'s** trophy count is updated! :thumbsup:`;
+
+        if(args[0] >= 825) {
+            responseText = `Oh my! That's a lot of 🏆! Great job! I updated **${player.gamename}'s** record btw.`;
+        };
+        const updTrophy = await Gang.update({
+            trophies: args[0]
+        }, {
+            where: {
+                discordid: targetPlayer
             }
-        }
+        });
+        return message.channel.send(responseText);
     }
-
 }

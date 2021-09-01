@@ -1,120 +1,106 @@
-const fs = require('fs');
-const {google} = require('googleapis');
-const privatekey = require('../../serviceacc.json');
-const {servers} = require('../../spreadsheet.json')
+const {Sequelize, Op} = require('sequelize');
 
 module.exports = {
 	name: 'battlestats',
 	description: 'Shows gang\'s battle stats and last 10 battles details.',
-    aliases: ['gangstats'],
 	cooldown: 5,
+    aliases: ['gangstats'],
 	guildOnly: true,
-	execute(message, args) {
+	execute: async (message, args) => {
 
-        delete require.cache[require.resolve('../../spreadsheet.json')];
+        const currServer = message.guild.id;
 
-		let currServer = message.guild.id;
+        const sequelize = new Sequelize({
+			dialect: 'sqlite',
+			storage: './data/servers.sqlite'
+		});
 
-		if(servers[currServer] == undefined || servers[currServer].logRange == undefined) {
-            message.channel.send(`Sorry, I have no data for this server`);
+		const Servers = sequelize.define('servers', {
+			server: Sequelize.STRING,
+			gangName: Sequelize.STRING,
+			gangTag: Sequelize.STRING,
+			range: Sequelize.STRING,
+			logRange: Sequelize.STRING,
+			channel: Sequelize.STRING,
+			dirChannel: Sequelize.STRING,
+			role: Sequelize.STRING,
+			captain: Sequelize.STRING,
+			gangLogo: Sequelize.STRING,
+		});
+
+        const server = await Servers.findOne({where: {server: currServer}});
+
+        if(!server || !server.logRange) {
+			return message.channel.send(`Sorry, I have no data for this server.`);
+		};
+
+        const GangLog = sequelize.define(server.logRange, {
+            date: Sequelize.STRING,
+            gangName: Sequelize.STRING,
+            enemyName: Sequelize.STRING,
+            battleResult: Sequelize.STRING,
+            instantWin: Sequelize.STRING,
+            image: {
+                type: Sequelize.STRING,
+                defaultValue: server.gangLogo
+            },
+        }, {
+            freezeTableName: true
+        });
+
+        const outputArray = [];
+
+        let wins = 0;
+        let losses = 0;
+
+        let battlesObj = [];
+
+        if(!args.length) {
+
+            battlesObj = await GangLog.findAll({
+                limit: 10,
+                where: {},
+                order: [['createdAt', 'DESC']]
+            });
+
+            battlesObj.reverse();
+
         } else {
-			const gangSheet = servers[currServer].logRange;
-			const gangsheetid = servers[currServer].spreadsheetid;
-			message.channel.startTyping();
 
-			// configure a JWT auth client
-			let jwtClient = new google.auth.JWT(
-				privatekey.client_email,
-				null,
-				privatekey.private_key,
-				['https://www.googleapis.com/auth/spreadsheets']
-			);
-			//authenticate request
-			jwtClient.authorize(function (err, tokens) {
-				if(err) {
-					console.log(err);
-					return;
-				} else {
-					return;
-				}
-			});
+            const searchString = args.join(' ');
 
-			const sheets = google.sheets('v4');
+            battlesObj = await GangLog.findAll({where: {enemyName: {[Op.substring]: searchString}}});
+        };
 
-			const sortArray = [];
-			const outputArray = [];
+        const sortArray = battlesObj.map(battle => {
+            let batDate = battle.dataValues.date.slice(5,10).padEnd(6," ");
+            let enemyName = battle.dataValues.enemyName.slice(0, 15).padEnd(15, " ");
+            let batResult = battle.dataValues.battleResult;
+            let batIns = battle.dataValues.instantWin.padEnd(4, " ");
+            if(batResult.toLowerCase() == "win") {
+                wins++;
+            };
+            if(batResult.toLowerCase() == "loss") {
+                losses++;
+            };
+            return [batDate, enemyName, batResult, batIns];
+        });
+        
+        if(!sortArray.length) {
+            return message.channel.send(`No battle data found for given parameters.`)
+        };
 
-			sheets.spreadsheets.values.get({
-				auth: jwtClient,
-				spreadsheetId: gangsheetid,
-				range: gangSheet,
-				}, (err, res) => {
-				  if (err) return console.log('The API returned an error: ' + err);
-				  const rows = res.data.values;
-				  if (rows.length) {
-					const date = rows[0].indexOf("Date");
-					const enemy = rows[0].indexOf("Enemy");
-					const result = rows[0].indexOf("Result");
-					const instant = rows[0].indexOf("Instant");
+        if(!args.length) {
+            wins = await GangLog.count({where: {battleResult: {[Op.substring]: 'win'}}});
+            losses = await GangLog.count({where: {battleResult: {[Op.substring]: 'loss'}}});
+        };
 
-					let wins = 0;
-					let losses = 0;
-						
-					for(i = 1; i <= rows.length - 1; i++) {        
-                        if(rows[i][0] !== undefined && rows[i][0] !== "" && rows[i][0] !== null) {
-                          let battleDate = rows[i][date].slice(5,10).padEnd(6," ");
-                          let enemyName = rows[i][enemy].slice(0, 15).padEnd(15, " ");
-                          let battleRes = rows[i][result];
-                          let battleIns = rows[i][instant].padEnd(4, " ");
-  
-  
-                          if(args[0] !== undefined) {
-                              if(enemyName.toLowerCase().includes(args[0].toLowerCase())) {
-                                  sortArray.push([battleDate, enemyName, battleRes, battleIns])
-                                  if(battleRes.toLowerCase() == 'win') {
-                                      wins++
-                                  }
-                                  if(battleRes.toLowerCase() == 'loss'){
-                                      losses++
-                                  }
-                              }
-                          } else {
-                              sortArray.push([battleDate, enemyName, battleRes, battleIns])
-                              if(battleRes.toLowerCase() == 'win') {
-                                  wins++
-                              }
-                              if(battleRes.toLowerCase() == 'loss'){
-                                  losses++
-                              }
-                          }
-                          
-                        }
-                    }
-
-					let count = 0;
-
-					if(sortArray.length > 10) {
-						count = sortArray.length - 10;
-					}
-                    if(sortArray.length == 0) {
-						outputArray.push(`No battle data found`)
-					}
-
-					for(j = count; j <= sortArray.length - 1; j++) {
-						outputArray.push(`${sortArray[j][0]}${sortArray[j][1]}${sortArray[j][2].padEnd(5, " ")}${sortArray[j][3]}`)
-					}
-	  
-					outputArray.unshift("Date".padEnd(6, " ")  + "Enemy".padEnd(15, " ") + "Win? " + "Inst");
-					outputArray.unshift(`Showing last 10 battles:`);
-					outputArray.unshift(`Total: ${wins+losses}, Wins: ${wins}, Losses: ${losses}, Ratio: ${Math.round(wins/(wins+losses)*100)}%`);
-					message.channel.send(`\`\`\`${outputArray.join("\n")}\`\`\``);
-					message.channel.stopTyping();
-				  } else {
-					console.log('No data found.');
-					message.channel.stopTyping();
-				  }
-					 
-				});
-		}
-	},
-};
+        for(i = 0; i <= sortArray.length - 1; i++) {
+            outputArray.push(`${sortArray[i][0]}${sortArray[i][1]}${sortArray[i][2].padEnd(5, " ")}${sortArray[i][3]}`);
+        };
+        outputArray.unshift("Date".padEnd(6, " ")  + "Enemy".padEnd(15, " ") + "Win? " + "Inst");
+        outputArray.unshift(`Showing last ${sortArray.length} battles:`);
+        outputArray.unshift(`Total: ${wins+losses}, Wins: ${wins}, Losses: ${losses}, Ratio: ${Math.round(wins/(wins+losses)*100)}%`);
+        return message.channel.send(`\`\`\`${outputArray.join("\n")}\`\`\``);
+    }
+}

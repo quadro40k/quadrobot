@@ -1,88 +1,134 @@
-const fs = require('fs');
-const {google} = require('googleapis');
-const privatekey = require('../../serviceacc.json');
-const {servers} = require('../../spreadsheet.json')
+const Sequelize = require('sequelize');
 
 module.exports = {
 	name: 'logbattle',
 	description: 'Logs battle results into spreadsheet. Usage: !logbattle <Enemy_Name> [Win/Loss] [Instant: Yes/No]',
-	cooldown: 5,
+    cooldown: 5,
 	guildOnly: true,
-	execute(message, args) {
+	execute: async (message, args) => {
 
-		delete require.cache[require.resolve('../../spreadsheet.json')];
+        if(args.length == 0) {
+			return message.channel.send('You need to specify the enemy and result')
+		};
 
-		if(args.length == 0) {
-			message.channel.send('You need to specify the enemy and result')
-		}
-
-		if(args[1] == undefined) {
+        if(args[1] == undefined) {
 			args[1] = 'Win'
-		}
+		};
 
 		if(args[2] == undefined) {
 			args[2] = 'No'
-		}
+		};
 
-		let imgUrl = ''
+		let result = "";
+		let instant = "";
+		let enemy = "";
 
-		if(message.attachments.first() !== undefined) {
-			imgUrl = message.attachments.first().url;
-		}
-
-		let currServer = message.guild.id;
-        let currChannel = message.channel.id;
-
-		if(servers[currServer] == undefined || servers[currServer].logRange == undefined) {
-            message.channel.send(`Sorry, I have no data for this server`);
-        } else {
-			if(servers[currServer].dirChannel !== currChannel) {
-                message.channel.send(`Wrong channel, use this command in <#${servers[currServer].dirChannel}>`);
-            } else {
-				const today = new Date().toISOString().slice(0,10);
-
-				const gangSheet = servers[currServer].logRange;
-				const gangsheetid = servers[currServer].spreadsheetid;
-
-				// configure a JWT auth client
-				let jwtClient = new google.auth.JWT(
-					privatekey.client_email,
-					null,
-					privatekey.private_key,
-					['https://www.googleapis.com/auth/spreadsheets']
-				);
-				//authenticate request
-				jwtClient.authorize(function (err, tokens) {
-					if(err) {
-						console.log(err);
-						return;
-					} else {
-						return;
-					}
-				});
-
-				const sheets = google.sheets('v4');
-
-				let updateRange = gangSheet;
-				let updateValue = [];
-				updateValue.push([today,args[0],args[1],args[2],imgUrl])
-				let updateRes = { 'values': updateValue};
-
-				sheets.spreadsheets.values.append({
-					auth: jwtClient,
-					spreadsheetId: gangsheetid,
-					range: updateRange,
-					valueInputOption: 'USER_ENTERED',
-					resource: updateRes
-				}, (err, result) => {
-					if(err) {
-						console.log("Error writing:" + err);
-						message.channel.send('Ouch, something went wrong, update failed');
-					} else {
-						message.channel.send(`Thanks, your battle data has been logged! :crossed_swords:`);
-					}
-				})
+        args.forEach(arg => {
+			if(arg.toLowerCase() == "win" || arg.toLowerCase() == "loss") {
+				result = arg;
+			} else {
+				if(arg.toLowerCase() == "yes" || arg.toLowerCase() == "no") {
+					instant = arg;
+				} else {
+					enemy = arg;
+				}
 			}
-		}
-	},
-};
+		});
+
+        let imgUrl = '';
+
+        let currServer = message.guild.id;
+
+        const sequelize = new Sequelize({
+			dialect: 'sqlite',
+			storage: './data/servers.sqlite'
+		});
+
+        const Servers = sequelize.define('servers', {
+			server: Sequelize.STRING,
+			gangName: Sequelize.STRING,
+			gangTag: Sequelize.STRING,
+			range: Sequelize.STRING,
+			logRange: Sequelize.STRING,
+			channel: Sequelize.STRING,
+			dirChannel: Sequelize.STRING,
+			spreadsheetid: Sequelize.STRING,
+			role: Sequelize.STRING,
+            captain: Sequelize.STRING,
+			dmEnabled: {
+				type: Sequelize.BOOLEAN,
+				defaultValue: false,
+			},
+			gangLogo: Sequelize.STRING,
+			redBanner: Sequelize.STRING
+		});
+
+        await Servers.sync();
+
+		const server = await Servers.findOne({where: {server: currServer}});
+
+        if(!server || server.logRange == undefined) {
+            return message.channel.send(`Sorry, I have no data for this server`);
+        };
+
+        if(message.attachments.first()) {
+			imgUrl = message.attachments.first().url;
+		} else {
+            imgUrl = server.gangLogo;
+        };
+
+        const authorMem = await message.guild.members.fetch(message.author.id);
+
+		if(!authorMem.roles.cache.some(role => role.id === server.captain)) {
+			return message.channel.send(`Sorry, this command is restricted to <@&${server.captain}> role.`);
+		};
+
+        const today = new Date().toISOString().slice(0,10);
+
+        const GangLog = sequelize.define(server.logRange, {
+            date: Sequelize.STRING,
+            gangName: Sequelize.STRING,
+            enemyName: Sequelize.STRING,
+            battleResult: Sequelize.STRING,
+            instantWin: Sequelize.STRING,
+            image: {
+                type: Sequelize.STRING,
+                defaultValue: server.gangLogo
+            },
+        }, {
+            freezeTableName: true
+        });
+
+        await GangLog.sync();
+
+        const logBattle = GangLog.create({
+            date: today,
+            gangName: server.gangTag,
+            enemyName: enemy,
+            battleResult: result,
+            instantWin: instant,
+            image: imgUrl,
+        });
+
+        const Battles = sequelize.define('battles', {
+            date: Sequelize.STRING,
+            gangName: Sequelize.STRING,
+            enemyName: Sequelize.STRING,
+            battleResult: Sequelize.STRING,
+            instantWin: Sequelize.STRING
+            
+        });
+
+        await Battles.sync();
+
+        const addBattle = Battles.create({
+            date: today,
+            gangName: server.gangTag,
+            enemyName: enemy,
+            battleResult: result,
+            instantWin: instant,
+        });
+
+        return message.channel.send(`Thanks, your battle data has been logged! :crossed_swords:`);
+    }
+}

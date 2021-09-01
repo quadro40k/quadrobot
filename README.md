@@ -2,16 +2,34 @@
 
 ## Introduction
 
-quadrobot is a simple Discord bot that was built for use by several gaming teams, playing CATS (Crash Arena Turbo Stars) and Forza games. It has several commands that may be useful for other teams, in same or other games or as a reference for someone trying to set up their own bot with similar functions.
+quadrobot is a simple Discord bot that was built for use by several gaming teams, playing CATS (Crash Arena Turbo Stars) game. It has several commands that may be useful for other teams, in same or other games or as a reference for someone trying to set up their own bot with similar functions.
 
 quadrobot is written in JavaScript based on Discord.js.
 
+quadrobot relies on the following to run:
+
+- node.js (v14 or later)
+- discord.js (v12, should work just fine with v13 or later but wasn't tested)
+- timezone-support npm module
+- sequelize npm module
+
+You, obviously, need a discord app set up as described in Discord.js guide (https://discordjs.guide).
+
+## Installation
+
+Copy the folder and file structure to a folder of your choice.
+
+Install node.js, then discord.js and timezone-support.
+
+Edit config.json (this file is not included here, follow Discord.js guide for details) to include your app token and command prefix.
+
+Run the bot using `node index.js` from the folder it's installed in (can also be run in the background using utilities like pm2).
+
 ## Overview of Commands
 
-Commands the bot executes are divided into three main categories:
+Commands the bot executes are divided into two main categories:
 - General - commands not related to any game.
 - CATS - commands related to Crash Arena Turbo Stars
-- Forza - commands related to Forza and PTG Forza team.
 
 ### General Commands
 
@@ -35,18 +53,9 @@ Commands the bot executes are divided into three main categories:
 - **instant** - calculates the time for instant win given points intake, current points and instant limit.
 - **ckfinish** - takes single number as agrument representing hours and minutes left in a round (e.g. 5 hours 10 minutes is 510) then generates new embed with local time for each gang member and reactions that allow check-in for members whether they will be online for battle start or not. 
 - **nocheckin** - assigns all gang members 'nocheckin' role (if exists). This command is used by **directions** command.
+- **adddir**, **upddir**, **showdir** - creates, updates or shows directions templates.
+- **addplayer**, **updplayer**, **delplayer** - adds, updates or removes a player from the gang.
 
-### Forza Commands
-
-- **fh4cars** - takes up to 4 arguments and then returns list of cars in Forza Horizon 4 matching provided arguments.
-- **fm7cars** - same as above but for Forza Motorsport 7.
-- **jamie** - takes up to 4 arguments and then returns list of tunes for Forza Horizon 4 cars by PTG Jamie matching provided arguments.
-- **ptg** - returns current PTG Team roster.
-- **ptgpainter** - returns painters from PTG Team roster.
-- **ptgracer** - returns racers from PTG Team roster.
-- **ptgtuner** - returns tuners from PTG Team roster.
-- **ptgphoto** - returns photographers from PTG Team roster.
-- **ptgvoteadd** - generates new embed with PTG logo and one picture, sets 👍 reaction to it and then collects reactions to provide voting functionality.
 
 ## Main bot code
 
@@ -82,94 +91,7 @@ getLocalTime function is exported from gettime.js script, which in turn requires
 
 #### gang, gangtime, gangtr, tr, updtr, updbot, logbattle, battlestats
 
-These CATS commands rely on **googleapis** npm package to read from a googlesheet.
-
-To authenticate with Google, a service account is used (has to be done from Google Cloud Console) with the key stored in serviceacc.json. Authentication code is very well described in this article: https://isd-soft.com/tech_blog/accessing-google-apis-using-service-account-node-js/ (which is where I copied the code from).
-
-Sheet configuration is defined in spreadsheet.json which defines a single object **servers** as follows:
-```
-{
-    "servers": {
-        "<numeric id of gang discord server>": {
-            "range": "<named range in google sheet>",
-            "channel": "<numeric id of the channel where bot will operate>",
-            "spreadsheetid": "<id of googlesheet with data>",
-            "dirChannel": "<id of the directions channel where directions will be sent>",
-            "gangLogo": "<url to the gang logo image>",
-            "role": "<numeric id of gang ping role>",
-            "logRange": "<named range for battle log in google sheet>"}
-    } 
-}
-```
-This is done to allow different gangs in the game to use the bot on their servers without having to share same spreadsheet and maintaining confidentiality from each other.
-
-The bot expects the table with following structure in the datasheet for gang members data:
-| Name |	Prestige |	Stage	Role |	Location	| Timezone| 	Health1| 	Damage1| 	Health2| 	Damage2| 	Health3| 	Damage3| 	CurCycle| 	Cycle2| 	Cycle3| 	Cycle4| 	DiscordID|	Filler_do not remove|
-| --- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |--- |
-
-The order of columns doesn't matter as long as Name is the first and Filler is the last. If column labels do not match however, the command code will need to be modified as the bot uses column labels to obtain indexes of the column to read from/write to.
-
-Here is an example of this from **gangtime** command:
-```
-const loc = rows[0].indexOf("Location");
-const tz = rows[0].indexOf("Timezone");
-```
-This is done to avoid hard references to columns positions and allow for inserting additional columns for further use or new commands.
-
-If battle log is used, the bot expects additional sheet with following structure:
-
-| Date |	Enemy |	Result |	Instant	| Image| 	Placeholder1| Placeholder2|Placeholder3|Placeholder4|Filler_do not remove|
-| --- |--- |--- |--- |--- |--- |--- |--- |--- |--- |
-
-**gangtime** command also relies on getLocalTime function so inherits dependency on **timezone-support** package.
-
-After data is read from the spreadsheet, each command slices and/or pads values into table-like output, feeds it into array and then sends to the discord channel.
-
-If command is used outside of the channel defined in spreadsheet.json, the bot will direct the user to correct channel and won't execute any queries.
-If command is used on the server that is not present in spreadsheet.json, the bot will apologize it doesn't have data for this server.
-
-#### nocheckin
-
-This command reads the list of gang players from google sheet and assigns them 'nocheckin' role if it exists on the server. The command is called by **directions** command and is used as part of participation tracking.
-
-#### directions
-
-When issued, directions command takes any text that follows the command and an image attached to the message, creates an embed based on that input and deletes the original message. The bot then adds a set of reactions to the embed that are used to track in-game bot placements via Reactions Collector class of discord.js. Embed is then updated based on collected or removed reactions. 
-
-The command also calls **nocheckin** commands to assign all members 'nocheckin' role. This role is removed when any of the reactions are collected. As a result, only not-checked-in members remain in the role, which allows targeted pings. 
-
-Here's an example of directions output:
-
-![directions_sample_small](https://user-images.githubusercontent.com/83503422/118609601-30c64680-b7bb-11eb-9a63-8c27d89b5b5b.png)
-
-Gang logo is taken from the spreasdheet.json. If no image is attached to the message, same logo is used as an image.
-
-When a player clicks numbers reaction, their name is logged as "defending" with the number of bots appended to it.
-When a player clicks skull or bone reaction, it means their bot is dead and their name gets added to "recovering section". This also triggers a two hours timer which notifies the player that their bot is fully healed.
-When a player clicks heart reaction, their number of free heals is reduced by 1.
-
-Together this provides a way for players and gang leaders to track bots placement, dead bots and number of heals per player, as well as heal reminder mechanism to facilitate good battle flow.
-
-#### instant
-
-Really simple command: takes points-per-minute gain as first argument, current points as second and instant limit as third, then calculates number of minutes until the instant win and returns it in "x hours and y minutes left". Useful for use with **ckfinish** command.
-
-#### ckfinish
-
-This command uses both reaction collector functionality and google API to access players list. Upon running with number as an argument it calculates the time of the battle finish, then converts it into each gang members' local time. This data is used to generate new embed with reactions that are tracked to provide check-in by the battle end.
-
-![finish_sample_small](https://user-images.githubusercontent.com/83503422/118610077-b0ecac00-b7bb-11eb-863c-fec6ab9463cd.png)
-
-
-### Forza Commands
-
-Forza-related commands follow the same principle as CATS commands above, in the sense that they rely on googleapis to parse shared spreadsheet and provide the output.
-
-**fh4cars** and **fm7cars** rely on Forza cars database maintained by Manteomax (https://wwww.manteomax.com).
-
-Both take up to 4 arguments as input and try to match each of them to cell values in the spreadsheet. Only details for cars that match ALL arguments are returned. The output is limited to a maximum of 20 results to meet Discord message size limitation and avoid multi-screen spam.
-
-PTG team related commands simply read the team roster spreadsheet and return respective values in a single array, not different to previously described commands.
+**section outdated, requires rewrite**
 
 ## Usage and feedback
 
